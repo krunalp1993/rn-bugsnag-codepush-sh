@@ -18,8 +18,34 @@ then
     echo "Bundle Directory created"
 else
     echo "Bundle Directory exists, Removing all the recent bundle files!"
-    rm -f ./$BUNDLE_PATH/*
+    rm -rf ./$BUNDLE_PATH/*
 fi
+
+clean_build_dir()
+{
+    echo -e "$RED Cleaning Build Directory!! ==> "
+    rm -rf ./$BUNDLE_PATH/*
+    echo -e "$GREEN DONE Cleaning Build Directory!! ==> "
+}
+
+delete_source_map()
+{
+    echo -e "$RED Cleaning Source map file!! ==> "
+    rm -rf ./$BUNDLE_PATH/*.map
+    echo -e "$GREEN DONE Cleaning Source map file!! ==> "
+}
+
+# Generating Directory for Assets
+# ASSETS_PATH="generated_bundle/assets"
+# if [ ! -d "$ASSETS_PATH" ]
+# then
+#     echo "Bundle Directory doesn't exist. Creating now"
+#     mkdir ./$ASSETS_PATH
+#     echo "Bundle Directory created"
+# else
+#     echo "Bundle Directory exists, Removing all the recent bundle files!"
+#     rm -f ./$ASSETS_PATH/*
+# fi
 
 
 # Ask App version
@@ -54,31 +80,46 @@ for platform in "${PLATFORMS[@]}"
 do
    for variant in "${VARIANTS[@]}"
     do
-        echo -e "$BLUE Generating Source map for $platform $variant $NC"
+        clean_build_dir
+
+        DEV=false
+        if [ $variant == debug ]
+        then
+            DEV=true
+        fi
+        echo -e "$BLUE Generating Source map for $platform $variant $NC DEV = $DEV"
+
+        BUNDLE_NAME="index.android.bundle"
+        if [ $platform == ios ]
+        then
+            BUNDLE_NAME=main.jsbundle
+        fi
+
         react-native bundle \
             --platform $platform \
-            --dev $variant === "debug" ? true : false \
+            --dev $DEV \
             --entry-file index.js \
-            --bundle-output $BUNDLE_PATH/$platform-$variant.bundle \
-            --sourcemap-output $BUNDLE_PATH/$platform-$variant.bundle.map
+            --bundle-output $BUNDLE_PATH/$BUNDLE_NAME \
+            --sourcemap-output $BUNDLE_PATH/$BUNDLE_NAME.map \
+            --assets-dest $BUNDLE_PATH
         echo -e "$GREEN Successfully generated Source map for $platform $variant $NC"
 
         echo -e "$BLUE Uploading Source map for $platform $variant $NC"  
         curl https://upload.bugsnag.com/react-native-source-map \
             -F apiKey=$API_KEY \
             -F appVersion=$APP_VERSION \
-            -F dev=$variant === "debug" ? true : false \
+            -F dev=$DEV \
             -F platform=$platform \
-            -F sourceMap=@$BUNDLE_PATH/$platform-$variant.bundle.map \
-            -F bundle=@$BUNDLE_PATH/$platform-$variant.bundle
+            -F sourceMap=@$BUNDLE_PATH/$BUNDLE_NAME.map \
+            -F bundle=@$BUNDLE_PATH/$BUNDLE_NAME
         echo -e "$GREEN Successfully uploaded Source map for $platform $variant $NC" 
         
+        delete_source_map
+
         if [ $variant == "release" ]
         then
             echo -e "$BLUE Runnig code push for Project : ${CODEPUSH_PROJECTS[$platform]}, Platform : $platform , Variant : $variant $NC"  
-           
-           echo "code-push release ${CODEPUSH_PROJECTS[$platform]} ./$BUNDLE_PATH/$platform-$variant.bundle $APP_VERSION -m --description $UPDATE_DESCRIPTION --deploymentName Production"
-            code-push release ${CODEPUSH_PROJECTS[$platform]} ./$BUNDLE_PATH/$platform-$variant.bundle $APP_VERSION -m --description $UPDATE_DESCRIPTION --deploymentName Production
+            code-push release ${CODEPUSH_PROJECTS[$platform]} ./$BUNDLE_PATH $APP_VERSION -m --description "$UPDATE_DESCRIPTION" --deploymentName Production --noDuplicateReleaseError
             echo -e "$GREEN Successfully Code pushed for $platform $variant $NC" 
         fi
     done
