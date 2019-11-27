@@ -2,11 +2,22 @@
 echo "Building and uploading source maps for BugSnag"
 
 # Global variables
-API_KEY="4d9773ed08d70318fb72ddfc7244d73a"
+# SET YOUR BUG SNAG API KEY HERE
+API_KEY=""
+declare -A CODEPUSH_PROJECTS  
+CODEPUSH_PROJECTS=( [android]=MTC [ios]=MTC-IOS )
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+
+if [ "$API_KEY" == "" ]
+then
+    echo "You must set BugSnag API Key to use this script! Edit the script and set API_KEY in line no 6."
+    exit 0
+fi
 
 
 # Generating Directory for Code Push bundles
@@ -74,8 +85,7 @@ echo "Generating Source map for Version : $APP_VERSION , Update Description : $U
 # Variants
 PLATFORMS=("android" "ios")
 VARIANTS=("debug" "release")
-declare -A CODEPUSH_PROJECTS  
-CODEPUSH_PROJECTS=( [android]=MTC [ios]=MTC-IOS )
+
 for platform in "${PLATFORMS[@]}"
 do
    for variant in "${VARIANTS[@]}"
